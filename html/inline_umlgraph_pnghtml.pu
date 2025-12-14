@@ -1,0 +1,64 @@
+@startuml inline_umlgraph_1.png
+ hide footbox
+ title Diagrama de secuencia: API_delay
+
+ actor "Aplicación (main.c)" as Main
+ participant "API_delay" as Delay
+ participant "API_delay_port" as Port
+ participant "HAL de STM32" as Hal
+
+ Main -> Delay : API_DELAY_Init()
+
+ Main -> Delay : API_DELAY_Read()
+ Delay -> Port : API_DELAY_PORT_GetTime()
+ Port -> Hal : HAL_GetTick()
+ Hal --> Port : cantidad de tick actual (1 tick = 1 ms)
+ Port --> Delay : tiempo actual en ms
+ Delay --> Main : true si expiró el delay y false en caso contrario
+
+ Main -> Delay : API_DELAY_Write()
+@enduml
+@startuml inline_umlgraph_2.png
+ hide footbox
+ title Diagrama de secuencia: API_lcd
+
+ actor "Aplicación (main.c)" as Main
+ participant "API_lcd" as LCD
+ participant "API_lcd_port" as Port
+ participant "HAL de STM32" as Hal
+
+ ' --- Inicialización general ---
+ Main -> LCD : API_LCD_Init()
+ LCD -> Port : API_LCD_PORT_WriteByte()\n(envío de comandos de init)
+ Port -> Hal : HAL_I2C_Master_Transmit()
+ Hal --> Port
+
+ ' --- Posicionar el cursor ---
+ Main -> LCD : API_LCD_CursorPosition(row, col)
+ LCD -> Port : API_LCD_PORT_WriteByte()\n(escritura dirección DDRAM)
+ Port -> Hal : HAL_I2C_Master_Transmit()
+ Hal --> Port
+
+ ' --- Escribir texto ---
+ Main -> LCD : API_LCD_WriteText(texto)
+ loop Envío de cada carácter
+     LCD -> Port : API_LCD_PORT_WriteByte()
+     Port -> Hal : HAL_I2C_Master_Transmit()
+     Hal --> Port
+ end
+
+ ' --- Escribir número ---
+ Main -> LCD : API_LCD_WriteNumber(valor)
+ LCD -> LCD : Conversión a string (sprintf)
+ loop Envío de cada carácter
+     LCD -> Port : API_LCD_PORT_WriteByte()
+     Port -> Hal : HAL_I2C_Master_Transmit()
+     Hal --> Port
+ end
+
+ ' --- Limpiar pantalla ---
+ Main -> LCD : API_LCD_CleanScreen()
+ LCD -> Port : API_LCD_PORT_WriteByte()\n(comando clear display)
+ Port -> Hal : HAL_I2C_Master_Transmit()
+ Hal --> Port
+@enduml
